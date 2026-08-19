@@ -1,0 +1,95 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Noto+Nastaliq+Urdu:wght@400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #E87C2E;
+  --color-secondary: #0B7D6E;
+  --color-accent: #F2C94C;
+  --color-background: #FDFAF5;
+  --color-surface: #F0EBE1;
+  --color-text-primary: #1A1410;
+  --color-text-muted: #8B7355;
+  --color-footer: #1A1410;
+  
+  --font-display: "Playfair Display", serif;
+  --font-body: "DM Sans", sans-serif;
+  --font-urdu: "Noto Nastaliq Urdu", serif;
+}
+
+@layer base {
+  :root {
+    --primary: #E87C2E;
+    --secondary: #0B7D6E;
+    --accent: #F2C94C;
+    --background: #FDFAF5;
+    --surface: #F0EBE1;
+    --text-primary: #1A1410;
+    --text-muted: #8B7355;
+    --gradient: linear-gradient(135deg, #E87C2E, #F2C94C);
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: "DM Sans", sans-serif;
+    overflow-x: hidden;
+  }
+  
+  h1, h2, h3, h4, h5, h6, .font-display {
+    font-family: "Playfair Display", serif;
+  }
+  
+  .font-urdu {
+    font-family: "Noto Nastaliq Urdu", serif;
+  }
+}
+
+@layer utilities {
+  .bg-gradient-saffron {
+    background-image: var(--gradient);
+  }
+  .text-gradient-saffron {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .fade-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+  }
+  
+  .fade-up.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  
+  .truck-art-pattern {
+    background-image: radial-gradient(var(--accent) 1px, transparent 1px), radial-gradient(var(--primary) 1px, transparent 1px);
+    background-size: 40px 40px;
+    background-position: 0 0, 20px 20px;
+    opacity: 0.05;
+  }
+
+  .glass-nav {
+    background: rgba(253, 250, 245, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(139, 115, 85, 0.1);
+  }
+
+  .card-hover {
+    transition: all 0.3s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px rgba(26, 20, 16, 0.08);
+    border-color: var(--accent);
+  }
+}

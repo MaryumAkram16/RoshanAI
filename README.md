@@ -1,6 +1,6 @@
 # RoshanAI: The Intelligent Career Illumination Platform
 
-RoshanAI is a comprehensive, AI-driven career intelligence platform designed to empower freelancers and professionals with data-backed insights. Built with **React 19**, **TypeScript**, and **Vite**, and powered by **OpenAI GPT-4o**, **Google Gemini**, and real-time market APIs (**JSearch**, **SerpAPI**), RoshanAI bridges the gap between individual skills and global market demands. It provides a unified dashboard for market intelligence, career gap analysis, profile optimization, and high-stakes negotiation coaching.
+RoshanAI is a comprehensive, AI-driven career intelligence platform designed to empower freelancers and professionals with data-backed insights. Built with **React 19**, **TypeScript**, and **Vite**, and powered by **OpenAI GPT-4o** and real-time market APIs (**JSearch**, **SerpAPI**), RoshanAI bridges the gap between individual skills and global market demands. It provides a unified dashboard for market intelligence, career gap analysis, profile optimization, and high-stakes negotiation coaching.
 
 ---
 
@@ -96,7 +96,6 @@ graph TD
     
     subgraph "Intelligence Engines"
         Frontend --> OpenAI[OpenAI GPT-4o]
-        Frontend --> Gemini[Google Gemini AI]
     end
     
     subgraph "Data Sources"
@@ -165,7 +164,7 @@ A specialized module for the final stage of the hiring process.
 | **Frontend Framework** | React 19 (Vite) |
 | **Language** | TypeScript |
 | **Styling** | Tailwind CSS + Framer Motion |
-| **AI Models** | OpenAI GPT-4o, Google Gemini 1.5 Flash |
+| **AI Models** | OpenAI GPT-4o |
 | **Database & Auth** | Firebase (Firestore, Authentication) |
 | **Market Data** | JSearch API, SerpAPI (Google Search) |
 | **Document Parsing** | PDF.js (PDF), Mammoth (DOCX) |
@@ -181,9 +180,9 @@ A specialized module for the final stage of the hiring process.
 - Node.js (v18+)
 - Firebase Project
 - OpenAI API Key
-- Google Gemini API Key
 - SerpAPI Key
 - JSearch API Key (RapidAPI)
+- YouTube Data API Key (used server-side for the Learning Roadmap's tutorial links)
 
 ### Installation
 
@@ -201,12 +200,20 @@ A specialized module for the final stage of the hiring process.
 3. **Configure Environment Variables:**
    Create a `.env.local` file in the root directory and add your keys:
    ```env
+   # Client-side (exposed to the browser, must be prefixed VITE_)
    VITE_OPENAI_API_KEY=your_openai_key
-   VITE_GEMINI_API_KEY=your_gemini_key
    VITE_SERPAPI_KEY=your_serpapi_key
-   VITE_RAPIDAPI_KEY=your_jsearch_key
-   VITE_FIREBASE_API_KEY=your_firebase_key
-   ... (other firebase config)
+   VITE_JSEARCH_KEY=your_jsearch_rapidapi_key
+
+   # Server-side (Express layer only, no VITE_ prefix)
+   OPENAI_API_KEY=your_openai_key
+   SERPAPI_KEY=your_serpapi_key
+   JSEARCH_API_KEY=your_jsearch_rapidapi_key
+   YOUTUBE_API_KEY=your_youtube_data_api_key
+   ```
+   Firebase config is read from `firebase-applet-config.json` rather than env vars. This file is gitignored (it holds a real project key), so copy the template and fill in your own Firebase project's values:
+   ```bash
+   cp firebase-applet-config.example.json firebase-applet-config.json
    ```
 
 4. **Run the development server:**
@@ -219,6 +226,3 @@ A specialized module for the final stage of the hiring process.
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-Jump to live
-
