@@ -4,7 +4,9 @@ import path from 'path';
 import {defineConfig} from 'vite';
 
 export default defineConfig(() => {
+  const githubPages = process.env.GITHUB_PAGES === 'true';
   return {
+    base: githubPages ? '/RoshanAI/' : '/',
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {

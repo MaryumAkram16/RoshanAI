@@ -1,0 +1,77 @@
+name: Deploy frontend to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'public/**'
+      - 'index.html'
+      - 'vite.config.ts'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'firebase-applet-config.example.json'
+      - '.github/workflows/deploy-pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write Firebase web configuration
+        env:
+          FIREBASE_WEB_CONFIG_JSON: ${{ secrets.FIREBASE_WEB_CONFIG_JSON }}
+        run: |
+          test -n "$FIREBASE_WEB_CONFIG_JSON"
+          printf '%s' "$FIREBASE_WEB_CONFIG_JSON" > firebase-applet-config.json
+
+      - name: Validate security invariants
+        run: npm run test:security
+
+      - name: Type-check frontend
+        run: npm run lint
+
+      - name: Build frontend for GitHub Pages
+        env:
+          GITHUB_PAGES: 'true'
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: npm run build:pages
+
+      - name: Add SPA fallback
+        run: cp dist/index.html dist/404.html
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

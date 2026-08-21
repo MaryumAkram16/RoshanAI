@@ -257,12 +257,21 @@ app.get("/api/serp", rateLimit, async (req, res) => {
   }
 });
 
-if (isProduction) {
-  app.use(express.static(path.join(__dirname, "dist"), { maxAge: "1h", index: false }));
-  app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
-  app.listen(port, "0.0.0.0", () => console.log(`RoshanAI server listening on ${port}`));
-} else {
+export { app };
+
+async function startLocalServer() {
+  if (isProduction) {
+    app.use(express.static(path.join(__dirname, "dist"), { maxAge: "1h", index: false }));
+    app.get("*", (_req, res) => res.sendFile(path.join(__dirname, "dist", "index.html")));
+    app.listen(port, "0.0.0.0", () => console.log(`RoshanAI server listening on ${port}`));
+    return;
+  }
+
   const vite = await createViteServer({ server: { middlewareMode: true, hmr: true } });
   app.use(vite.middlewares);
   app.listen(port, "0.0.0.0", () => console.log(`RoshanAI dev server listening on ${port}`));
+}
+
+if (!process.env.VERCEL && !process.env.SERVERLESS) {
+  await startLocalServer();
 }
