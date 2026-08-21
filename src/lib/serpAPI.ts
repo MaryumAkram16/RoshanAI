@@ -1,3 +1,5 @@
+import { apiFetch } from './apiClient';
+
 export interface SerpSalaryData {
   intlMin: number;
   intlAvg: number;
@@ -117,7 +119,7 @@ export function parseSalaryFromSearchResults(html: string): { min: number; avg: 
 
 /**
  * Fetch salary data from SERP API for a custom role.
- * Import path: import { fetchSalaryFromSERP } from './serpAPI'  (root-level file)
+ * Import path: import { fetchSalaryFromSERP } from './serpAPI' (root-level file)
  */
 export async function fetchSalaryFromSERP(
   role: string,
@@ -128,7 +130,7 @@ export async function fetchSalaryFromSERP(
   if (cached) return cached;
 
   const queryParams = new URLSearchParams({ role, experience, location });
-  const response = await fetch(`/api/serp?${queryParams.toString()}`);
+  const response = await apiFetch(`/api/serp?${queryParams.toString()}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data?.error || 'Salary data service request failed');

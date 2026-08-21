@@ -20,6 +20,7 @@
  */
 
 import { callOpenAI } from './App';
+import { apiFetch } from './lib/apiClient';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API KEYS — from .env.local (Vite exposes VITE_ prefix vars, or use define in vite.config.ts)
@@ -118,7 +119,7 @@ async function fetchJSearch(
   let jobs: any[] = [];
 
   try {
-    const res = await fetch(`/api/jobs?${params.toString()}`);
+    const res = await apiFetch(`/api/jobs?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
       jobs = data?.data || [];
@@ -184,7 +185,7 @@ async function fetchSerpAPISalary(role: string, location: string): Promise<Proce
   let related: any[] = [];
 
   try {
-    const res = await fetch(`/api/serp-jobs?${params.toString()}`);
+    const res = await apiFetch(`/api/serp-jobs?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
       jobs    = data?.jobs_results     || [];

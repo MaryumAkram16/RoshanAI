@@ -16,6 +16,8 @@
  *   SERPAPI_KEY=your_serpapi_key_here
  */
 
+import { apiFetch } from './lib/apiClient';
+
 import { callOpenAI } from './App';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -210,7 +212,7 @@ async function fetchTopProfileUrls(
       gl: market.includes('United States') ? 'us' : market.includes('United Kingdom') ? 'uk' : 'us',
     });
 
-    const res = await fetch(`/api/serp-search?${params.toString()}`);
+    const res = await apiFetch(`/api/serp-search?${params.toString()}`);
     if (!res.ok) {
       console.warn('[profileIntelligence] SerpAPI non-OK:', res.status);
       return [];

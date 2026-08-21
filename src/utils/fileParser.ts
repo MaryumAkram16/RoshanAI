@@ -11,9 +11,25 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerSrc;
 
 export async function extractTextFromLocalFile(file: File): Promise<string> {
   const name = file.name.toLowerCase();
-  
-  if (file.size > 10 * 1024 * 1024) {
-    throw new Error('File exceeds the maximum allowed size of 10MB.');
+  const extension = name.includes('.') ? name.slice(name.lastIndexOf('.')) : '';
+  const allowedExtensions = new Set(['.pdf', '.docx', '.txt', '.rtf', '.png', '.jpg', '.jpeg']);
+  if (!allowedExtensions.has(extension)) {
+    throw new Error('Unsupported file type. Please upload a PDF, DOCX, TXT, RTF, PNG, or JPEG file.');
+  }
+  if (file.size <= 0 || file.size > 10 * 1024 * 1024) {
+    throw new Error('File must be non-empty and no larger than 10MB.');
+  }
+  const expectedMimeTypes: Record<string, string[]> = {
+    '.pdf': ['application/pdf'],
+    '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+    '.txt': ['text/plain'],
+    '.rtf': ['application/rtf', 'text/rtf'],
+    '.png': ['image/png'],
+    '.jpg': ['image/jpeg'],
+    '.jpeg': ['image/jpeg'],
+  };
+  if (file.type && !expectedMimeTypes[extension].includes(file.type)) {
+    throw new Error('The file extension and MIME type do not match. Please choose the original file.');
   }
 
   try {

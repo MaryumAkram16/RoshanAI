@@ -5,6 +5,7 @@ import admin from "firebase-admin";
 import { createServer as createViteServer } from "vite";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -30,7 +31,23 @@ try {
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "12mb", strict: true }));
+
+const allowedOrigins = new Set((process.env.ALLOWED_ORIGINS || "").split(",").map(origin => origin.trim()).filter(Boolean));
+app.use((req, res, next) => {
+  const origin = req.header("origin");
+  if (isProduction && origin && !allowedOrigins.has(origin)) {
+    return res.status(403).json({ error: "Origin is not allowed." });
+  }
+  return next();
+});
 app.use(authenticate);
+
+const protectedApi = isProduction || process.env.REQUIRE_API_AUTH === "true";
+app.use((req, res, next) => {
+  if (!req.path.startsWith("/api/") || req.path === "/api/health" || !protectedApi) return next();
+  if (!res.locals.authUid) return res.status(401).json({ error: "Authentication is required." });
+  return next();
+});
 
 // Lightweight security headers; production hosting should also set these at the edge.
 app.use((_req, res, next) => {
@@ -39,12 +56,16 @@ app.use((_req, res, next) => {
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
   res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  if (isProduction) {
+    res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data: https:; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'");
+  }
   next();
 });
 
 const requestCounts = new Map<string, { count: number; resetAt: number }>();
 const RATE_WINDOW_MS = 60 * 60 * 1000;
 const RATE_LIMIT = 20;
+const sharedRateLimitDb = firebaseAdminReady && process.env.RATE_LIMIT_STORE === "firestore" ? admin.firestore() : null;
 
 async function authenticate(req: Request, res: Response, next: NextFunction) {
   const authorization = req.header("authorization");
@@ -61,17 +82,38 @@ async function authenticate(req: Request, res: Response, next: NextFunction) {
   }
 }
 
-function rateLimit(req: Request, res: Response, next: NextFunction) {
+async function rateLimit(req: Request, res: Response, next: NextFunction) {
   const key = String(res.locals.authUid ? `uid:${res.locals.authUid}` : `ip:${req.ip || req.socket.remoteAddress || "unknown"}`);
   const now = Date.now();
+
+  if (sharedRateLimitDb) {
+    try {
+      const documentId = createHash("sha256").update(key).digest("hex").slice(0, 40);
+      const ref = sharedRateLimitDb.collection("_rate_limits").doc(documentId);
+      const allowed = await sharedRateLimitDb.runTransaction(async transaction => {
+        const snapshot = await transaction.get(ref);
+        const current = snapshot.exists ? snapshot.data() as { count?: number; resetAt?: number } : undefined;
+        const count = current && current.resetAt && current.resetAt > now ? current.count || 0 : 0;
+        if (count >= RATE_LIMIT) return false;
+        transaction.set(ref, { keyHash: documentId, count: count + 1, resetAt: now + RATE_WINDOW_MS, updatedAt: new Date() });
+        return true;
+      });
+      if (!allowed) return res.status(429).json({ error: "Too many requests. Please try again later." });
+      return next();
+    } catch (error) {
+      console.error("Shared rate limiter unavailable", error instanceof Error ? error.message : "unknown error");
+    }
+  }
+
   const current = requestCounts.get(key);
   if (!current || current.resetAt <= now) {
     requestCounts.set(key, { count: 1, resetAt: now + RATE_WINDOW_MS });
+    if (requestCounts.size > 10_000) {
+      for (const [entryKey, entry] of requestCounts) if (entry.resetAt <= now) requestCounts.delete(entryKey);
+    }
     return next();
   }
-  if (current.count >= RATE_LIMIT) {
-    return res.status(429).json({ error: "Too many requests. Please try again later." });
-  }
+  if (current.count >= RATE_LIMIT) return res.status(429).json({ error: "Too many requests. Please try again later." });
   current.count += 1;
   return next();
 }

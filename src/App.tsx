@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Homepage } from './Homepage';
 import { UserProfilePage } from './UserProfilePage';
 import { useAuth } from './contexts/AuthContext';
-import { auth } from './lib/firebase';
+import { apiFetch } from './lib/apiClient';
 import { CareerAnalysis } from './components/career/CareerAnalysis';
 import { ProposalGenerator } from './components/career/ProposalGenerator';
 import { SalaryCoach } from './components/career/SalaryCoach';
@@ -33,13 +33,10 @@ export async function extractTextFromResume(fileData: { mimeType: string, data: 
 }
 
 export async function callOpenAI(prompt: string, fileData?: { mimeType: string, data: string }): Promise<string> {
-  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  const response = await fetch('/api/ai', {
+  const safeFileData = fileData?.mimeType.startsWith('image/') ? fileData : undefined;
+  const response = await apiFetch('/api/ai', {
     method: 'POST',
-    headers,
-    body: JSON.stringify({ prompt, fileData }),
+    body: JSON.stringify({ prompt, fileData: safeFileData }),
   });
 
   const payload = await response.json().catch(() => ({}));

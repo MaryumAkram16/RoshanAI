@@ -8,6 +8,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { saveCareerAnalysisToFirebase } from '../../lib/firebase';
 import { callOpenAI, extractTextFromResume, S } from '../../App';
+import { apiFetch } from '../../lib/apiClient';
 
 // Provider credentials are kept on the server; this component retains the same
 // feature-level fallbacks when optional live data is unavailable.
@@ -90,7 +91,7 @@ async function fetchJSearchJobs(role: string, market: string, workType: string):
   if (isRemote) params.set('remote_jobs_only', 'true');
 
   try {
-    const res = await fetch(`/api/jobs?${params.toString()}`);
+    const res = await apiFetch(`/api/jobs?${params.toString()}`);
     if (!res.ok) {
       console.warn('[CareerAnalysis] JSearch non-OK:', res.status);
       return [];
@@ -108,7 +109,7 @@ async function fetchYouTubeVideo(skill: string): Promise<{ url: string; title: s
   const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial for beginners')}`;
   const fallback  = { url: searchUrl, title: `Search "${skill} tutorial" on YouTube` };
   try {
-    const res = await fetch(`/api/youtube?skill=${encodeURIComponent(skill)}`);
+    const res = await apiFetch(`/api/youtube?skill=${encodeURIComponent(skill)}`);
     if (!res.ok) return fallback;
     const data = await res.json();
     if (!data?.url) return fallback;
@@ -127,7 +128,7 @@ async function fetchPaidCourse(skill: string): Promise<{ title: string; platform
     url:      `https://www.udemy.com/courses/search/?q=${encodeURIComponent(skill)}&sort=relevance`,
   };
   try {
-    const res = await fetch(`/api/serp-jobs?skill=${encodeURIComponent(skill)}`);
+    const res = await apiFetch(`/api/serp-jobs?skill=${encodeURIComponent(skill)}`);
     if (!res.ok) return udemyFallback;
     const data  = await res.json();
     const first = (data?.organic_results ?? [])[0];
