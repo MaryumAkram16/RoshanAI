@@ -521,7 +521,7 @@ Analyse this offer against market rates. Generate a negotiation strategy.`;
                         msg.toLowerCase().includes('invalid api key') ||
                         msg.toLowerCase().includes('vite_serpapi_key')
                       ) {
-                        setError('SERP API Key missing or invalid. Add VITE_SERPAPI_KEY to your .env.local file.');
+                        setError('Salary data service is unavailable. Please try again later.');
                       } else if (msg.toLowerCase().includes('no valid salary')) {
                         setError('Market data found but no salary figures could be parsed. Try a different role name.');
                       } else if (msg.toLowerCase().includes('no search results')) {

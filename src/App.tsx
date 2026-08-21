@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
-import OpenAI from 'openai';
 import { Homepage } from './Homepage';
 import { UserProfilePage } from './UserProfilePage';
 import { useAuth } from './contexts/AuthContext';
+import { auth } from './lib/firebase';
 import { CareerAnalysis } from './components/career/CareerAnalysis';
 import { ProposalGenerator } from './components/career/ProposalGenerator';
 import { SalaryCoach } from './components/career/SalaryCoach';
@@ -24,45 +24,29 @@ import {
 } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 
-// ── OPENAI SETUP ──
-const apiKey = import.meta.env.VITE_OPENAI_API_KEY || process.env.OPENAI_API_KEY || '';
-const openai = new OpenAI({ apiKey, dangerouslyAllowBrowser: true });
-
+// ── AI API ──
+// Provider credentials stay on the server. Keeping this interface stable means the
+// existing analysis, proposal, profile, and salary-coach pipelines do not change.
 export async function extractTextFromResume(fileData: { mimeType: string, data: string }): Promise<string> {
   const prompt = "Extract all the text from this resume accurately. Return ONLY the raw extracted text, with proper formatting and structure. Do not add any introductory or concluding remarks.";
   return await callOpenAI(prompt, fileData);
 }
 
 export async function callOpenAI(prompt: string, fileData?: { mimeType: string, data: string }): Promise<string> {
-  const messages: any[] = [];
-  
-  if (fileData && fileData.mimeType.startsWith('image/')) {
-    messages.push({
-      role: 'user',
-      content: [
-        { type: 'text', text: prompt },
-        { 
-          type: 'image_url', 
-          image_url: { url: `data:${fileData.mimeType};base64,${fileData.data}` }
-        }
-      ]
-    });
-  } else {
-    // For non-images or normal text prompts, just send text. Note: OpenAI chat completions
-    // doesn't support direct PDF base64 parsing via inline data natively like OpenAI,
-    // so we just pass the prompt for those (they should be extracted locally by mammoth/pdfjs already).
-    messages.push({
-      role: 'user',
-      content: prompt
-    });
-  }
-  
-  const response = await openai.chat.completions.create({
-    model: 'gpt-4o', // or another appropriate model
-    messages: messages,
+  const token = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const response = await fetch('/api/ai', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ prompt, fileData }),
   });
-  
-  return response.choices[0]?.message?.content ?? '';
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(payload?.error || 'AI service request failed');
+  }
+  return typeof payload?.text === 'string' ? payload.text : '';
 }
 
 // ── STATIC INTELLIGENCE DATA ──

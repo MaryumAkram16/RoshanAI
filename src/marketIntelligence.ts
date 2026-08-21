@@ -25,8 +25,6 @@ import { callOpenAI } from './App';
 // API KEYS — from .env.local (Vite exposes VITE_ prefix vars, or use define in vite.config.ts)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const JSEARCH_KEY = import.meta.env.VITE_JSEARCH_KEY || process.env.JSEARCH_API_KEY || '';
-const SERPAPI_KEY  = import.meta.env.VITE_SERPAPI_KEY || process.env.SERPAPI_KEY || '';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC TYPES
@@ -120,15 +118,7 @@ async function fetchJSearch(
   let jobs: any[] = [];
 
   try {
-    const res = await fetch(
-      `https://jsearch.p.rapidapi.com/search?${params.toString()}`,
-      {
-        headers: {
-          'X-RapidAPI-Key':  JSEARCH_KEY,
-          'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
-        },
-      },
-    );
+    const res = await fetch(`/api/jobs?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
       jobs = data?.data || [];
@@ -188,19 +178,13 @@ async function fetchJSearch(
 // ─────────────────────────────────────────────────────────────────────────────
 
 async function fetchSerpAPISalary(role: string, location: string): Promise<ProcessedSalaryData> {
-  const params = new URLSearchParams({
-    engine:  'google_jobs',
-    q:       `${role} salary`,
-    location,
-    chips:   'date_posted:month',
-    api_key: SERPAPI_KEY,
-  });
+  const params = new URLSearchParams({ role, location });
 
   let jobs: any[]    = [];
   let related: any[] = [];
 
   try {
-    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+    const res = await fetch(`/api/serp-jobs?${params.toString()}`);
     if (res.ok) {
       const data = await res.json();
       jobs    = data?.jobs_results     || [];

@@ -116,60 +116,6 @@ export function parseSalaryFromSearchResults(html: string): { min: number; avg: 
 }
 
 /**
- * Try to fetch JSON from a URL, attempting direct first then falling
- * back through two CORS proxies. Returns the parsed JSON object.
- */
-async function fetchWithCORSFallback(url: string): Promise<any> {
-  // 1️⃣ Direct — SerpAPI does support CORS on paid plans
-  try {
-    const res = await fetch(url);
-    if (res.ok) {
-      const data = await res.json();
-      // SerpAPI can return 200 with an error field — surface it properly
-      if (data?.error) throw new Error(data.error);
-      return data;
-    }
-  } catch (directErr: any) {
-    // If it's a meaningful SerpAPI error (not a network/CORS error) re-throw immediately
-    const msg: string = directErr?.message ?? '';
-    if (
-      msg.toLowerCase().includes('invalid api key') ||
-      msg.toLowerCase().includes('api key') ||
-      msg.toLowerCase().includes('rate limit') ||
-      msg.toLowerCase().includes('quota')
-    ) {
-      throw directErr;
-    }
-    console.warn('[serpAPI] Direct fetch failed, trying proxy 1:', msg);
-  }
-
-  // 2️⃣ corsproxy.io — more reliable than allorigins
-  try {
-    const proxy1 = `https://corsproxy.io/?${encodeURIComponent(url)}`;
-    const res = await fetch(proxy1);
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.error) throw new Error(data.error);
-      return data;
-    }
-  } catch (p1Err: any) {
-    const msg: string = p1Err?.message ?? '';
-    if (msg.toLowerCase().includes('api key') || msg.toLowerCase().includes('quota')) {
-      throw p1Err;
-    }
-    console.warn('[serpAPI] Proxy 1 failed, trying proxy 2:', msg);
-  }
-
-  // 3️⃣ allorigins — last resort
-  const proxy2 = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-  const res = await fetch(proxy2);
-  if (!res.ok) throw new Error(`All proxies failed (status ${res.status})`);
-  const data = await res.json();
-  if (data?.error) throw new Error(data.error);
-  return data;
-}
-
-/**
  * Fetch salary data from SERP API for a custom role.
  * Import path: import { fetchSalaryFromSERP } from './serpAPI'  (root-level file)
  */
@@ -181,25 +127,12 @@ export async function fetchSalaryFromSERP(
   const cached = getCachedSalaryData(role, experience, location);
   if (cached) return cached;
 
-  const SERPAPI_KEY = import.meta.env.VITE_SERPAPI_KEY;
-  if (!SERPAPI_KEY) {
-    // Match what the SalaryCoach catch block checks for
-    throw new Error('Missing API Key: VITE_SERPAPI_KEY not set in .env.local');
+  const queryParams = new URLSearchParams({ role, experience, location });
+  const response = await fetch(`/api/serp?${queryParams.toString()}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data?.error || 'Salary data service request failed');
   }
-
-  const query = `${role} salary ${experience} ${location} 2024`;
-  const params = new URLSearchParams({
-    engine:  'google',
-    q:       query,
-    api_key: SERPAPI_KEY,
-    num:     '10',
-  });
-
-  const serpUrl = `https://serpapi.com/search.json?${params.toString()}`;
-  console.log('[serpAPI] Fetching:', `https://serpapi.com/search.json?engine=google&q=${encodeURIComponent(query)}`);
-
-  // fetchWithCORSFallback handles direct + 2 proxies and always throws a clean Error
-  const data = await fetchWithCORSFallback(serpUrl);
 
   if (!data.organic_results || data.organic_results.length === 0) {
     throw new Error('No search results found for this role');

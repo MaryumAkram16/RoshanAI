@@ -198,30 +198,19 @@ async function fetchTopProfileUrls(
   role:     string,
   market:   string,
 ): Promise<SerpResult[]> {
-  const SERPAPI_KEY = import.meta.env.VITE_SERPAPI_KEY || process.env.SERPAPI_KEY || '';
-
   const rules = PLATFORM_RULES[platform];
   if (!rules) return [];
 
   // Build a targeted query that surfaces actual freelancer profile pages
   const query = `${rules.siteQuery} "${role}" ${rules.searchModifiers} ${market !== 'Local Pakistan Market' ? market : ''}`.trim();
 
-  if (!SERPAPI_KEY) {
-    console.warn('[profileIntelligence] SERPAPI_KEY not set — skipping live profile fetch');
-    return [];
-  }
-
   try {
     const params = new URLSearchParams({
-      engine:  'google',
-      q:       query,
-      num:     '8',
-      api_key: SERPAPI_KEY,
-      gl:      market.includes('United States') ? 'us' : market.includes('United Kingdom') ? 'uk' : 'us',
-      hl:      'en',
+      q:  query,
+      gl: market.includes('United States') ? 'us' : market.includes('United Kingdom') ? 'uk' : 'us',
     });
 
-    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+    const res = await fetch(`/api/serp-search?${params.toString()}`);
     if (!res.ok) {
       console.warn('[profileIntelligence] SerpAPI non-OK:', res.status);
       return [];

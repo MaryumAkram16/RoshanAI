@@ -1,12 +1,36 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return signedIn() && request.auth.uid == userId;
     }
 
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      // Users may only access their own profile document.
+      allow read: if isOwner(userId);
+
+      // The client may create its own profile, but cannot claim another UID.
+      allow create: if isOwner(userId)
+        && request.resource.data.uid == userId;
+
+      // Preserve existing application writes while making identity and creation
+      // metadata immutable from the browser.
+      allow update: if isOwner(userId)
+        && resource.data.uid == userId
+        && request.resource.data.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys()
+            .hasNone(['uid', 'createdAt']);
+
+      allow delete: if isOwner(userId);
+    }
+
+    // Default deny for every collection not explicitly declared above.
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }

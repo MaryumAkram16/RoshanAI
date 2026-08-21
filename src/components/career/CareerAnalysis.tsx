@@ -9,15 +9,8 @@ import { useAuth } from '../../contexts/AuthContext';
 import { saveCareerAnalysisToFirebase } from '../../lib/firebase';
 import { callOpenAI, extractTextFromResume, S } from '../../App';
 
-// ─────────────────────────────────────────────────────────
-// ENV KEYS  (set in .env.local)
-// VITE_JSEARCH_KEY  → RapidAPI JSearch key
-// VITE_YOUTUBE_KEY  → Google YouTube Data API v3 key
-// VITE_SERPAPI_KEY  → SerpAPI key (optional – falls back gracefully)
-// ─────────────────────────────────────────────────────────
-const JSEARCH_KEY = (import.meta as any).env?.VITE_JSEARCH_KEY  || (process.env.JSEARCH_API_KEY  ?? '');
-const YOUTUBE_KEY = (import.meta as any).env?.VITE_YOUTUBE_KEY  || (process.env.YOUTUBE_API_KEY  ?? '');
-const SERPAPI_KEY = (import.meta as any).env?.VITE_SERPAPI_KEY  || (process.env.SERPAPI_KEY       ?? '');
+// Provider credentials are kept on the server; this component retains the same
+// feature-level fallbacks when optional live data is unavailable.
 
 // ─────────────────────────────────────────────────────────
 // TYPES
@@ -81,10 +74,6 @@ interface AnalysisResult {
 
 /** Fetch jobs from JSearch RapidAPI */
 async function fetchJSearchJobs(role: string, market: string, workType: string): Promise<RawJob[]> {
-  if (!JSEARCH_KEY) {
-    console.warn('[CareerAnalysis] JSEARCH_KEY not set – skipping live job fetch');
-    return [];
-  }
   const isRemote = workType.toLowerCase() === 'remote';
   const params = new URLSearchParams({
     query:            `${role} in ${market}`,
@@ -101,12 +90,7 @@ async function fetchJSearchJobs(role: string, market: string, workType: string):
   if (isRemote) params.set('remote_jobs_only', 'true');
 
   try {
-    const res = await fetch(`https://jsearch.p.rapidapi.com/search?${params.toString()}`, {
-      headers: {
-        'X-RapidAPI-Key':  JSEARCH_KEY,
-        'X-RapidAPI-Host': 'jsearch.p.rapidapi.com',
-      },
-    });
+    const res = await fetch(`/api/jobs?${params.toString()}`);
     if (!res.ok) {
       console.warn('[CareerAnalysis] JSearch non-OK:', res.status);
       return [];
@@ -123,24 +107,12 @@ async function fetchJSearchJobs(role: string, market: string, workType: string):
 async function fetchYouTubeVideo(skill: string): Promise<{ url: string; title: string }> {
   const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(skill + ' tutorial for beginners')}`;
   const fallback  = { url: searchUrl, title: `Search "${skill} tutorial" on YouTube` };
-  if (!YOUTUBE_KEY) return fallback;
   try {
-    const params = new URLSearchParams({
-      part:       'snippet',
-      q:          `${skill} tutorial for beginners 2024`,
-      type:       'video',
-      maxResults: '1',
-      key:        YOUTUBE_KEY,
-    });
-    const res = await fetch(`https://www.googleapis.com/youtube/v3/search?${params.toString()}`);
+    const res = await fetch(`/api/youtube?skill=${encodeURIComponent(skill)}`);
     if (!res.ok) return fallback;
     const data = await res.json();
-    const v    = data?.items?.[0];
-    if (!v?.id?.videoId) return fallback;
-    return {
-      url:   `https://www.youtube.com/watch?v=${v.id.videoId}`,
-      title: v.snippet?.title ?? fallback.title,
-    };
+    if (!data?.url) return fallback;
+    return { url: data.url, title: data.title ?? fallback.title };
   } catch {
     return fallback;
   }
@@ -154,16 +126,8 @@ async function fetchPaidCourse(skill: string): Promise<{ title: string; platform
     platform: 'Udemy',
     url:      `https://www.udemy.com/courses/search/?q=${encodeURIComponent(skill)}&sort=relevance`,
   };
-  if (!SERPAPI_KEY) return udemyFallback;
-
   try {
-    const params = new URLSearchParams({
-      engine:  'google',
-      q:       `best ${skill} course site:udemy.com OR site:coursera.org`,
-      api_key: SERPAPI_KEY,
-      num:     '3',
-    });
-    const res = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+    const res = await fetch(`/api/serp-jobs?skill=${encodeURIComponent(skill)}`);
     if (!res.ok) return udemyFallback;
     const data  = await res.json();
     const first = (data?.organic_results ?? [])[0];
@@ -701,9 +665,9 @@ RETURN ONLY VALID JSON — NO markdown fences, NO explanation:
           {/* API status hint */}
           <div style={{ marginTop:16, padding:'10px 12px', background:'#F0EBE1', borderRadius:10, fontSize:'0.72rem', color:'#8B7355', lineHeight:1.5 }}>
             <strong style={{ color:'#1A1410' }}>Data sources:</strong><br/>
-            {JSEARCH_KEY ? '✅ JSearch API (live jobs)' : '⚠️ JSearch key missing – using AI knowledge'}<br/>
-            {YOUTUBE_KEY ? '✅ YouTube API (real videos)' : '⚠️ YouTube key missing – using search links'}<br/>
-            {SERPAPI_KEY ? '✅ SerpAPI (real courses)' : '⚠️ SerpAPI key missing – using Udemy links'}
+            ✅ Live job search is routed securely through the server<br/>
+            ✅ Tutorial and course lookups use server-side provider keys<br/>
+            ℹ️ Optional integrations fall back gracefully when not configured
           </div>
         </div>
 
